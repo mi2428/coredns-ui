@@ -99,11 +99,14 @@
   <h2><span class="fa fa-edit pr-2"></span>Edit existing records</h2>
   <p>Type something in the input field to search the table for first names, last names or emails:</p>
   <div class="form-row">
-    <div class="col-md-8 mb-12">
+    <div class="col-md-6 mb-12">
       <input class="form-control" id="myInput" type="text" placeholder="Filter..">
     </div>
     <div class="col-md-2 mb-12">
-      <button class="btn btn-success w-100" type="submit"><span class="fa fa-file-archive pr-2"></span>Download zone</button>
+      <button class="btn btn-info w-100" type="submit"><span class="fa fa-upload pr-2"></span>Upload zone</button>
+    </div>
+    <div class="col-md-2 mb-12">
+      <button class="btn btn-success w-100" type="submit"><span class="fa fa-download pr-2"></span>Download zone</button>
     </div>
     <div class="col-md-2 mb-12">
       <button class="btn btn-danger w-100" type="submit" disabled><span class="fa fa-trash-alt pr-2"></span>Delete selected</button>
