@@ -1,132 +1,13 @@
 package main
 
 import (
-  "fmt"
   "log"
   "time"
   "context"
   "github.com/coreos/etcd/client"
-  "github.com/coreos/etcd/clientv3"
 )
 
-func client_demo() {
-  cfg := client.Config{
-    Endpoints: []string{"http://127.0.0.1:62379"},
-    Transport: client.DefaultTransport,
-    HeaderTimeoutPerRequest: time.Second,
-  }
-  c, err := client.New(cfg)
-  if err != nil {
-    log.Fatal(err)
-  }
-  kapi := client.NewKeysAPI(c)
-  log.Print("Setting '/foo' key with 'bar' value")
-	resp, err := kapi.Set(context.Background(), "/foo2", "bar", nil)
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		// print common key info
-		log.Printf("Set is done. Metadata is %q\n", resp)
-	}
-	// get "/foo" key's value
-	log.Print("Getting '/foo' key value")
-	resp, err = kapi.Get(context.Background(), "/foo2", nil)
-	if err != nil {
-		log.Fatal(err)
-	} else {
-		// print common key info
-		log.Printf("Get is done. Metadata is %q\n", resp)
-		// print value
-		log.Printf("%q key has %q value\n", resp.Node.Key, resp.Node.Value)
-	}
-}
-
-func client_v3_demo(){
-  cli, err := clientv3.New(clientv3.Config{
-    Endpoints: []string{"localhost:62379"},
-    DialTimeout: 5 * time.Second,
-  })
-  if err != nil {
-    log.Fatal(err)
-  }
-  defer cli.Close()
-
-  ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
-  defer cancel()
-
-  _, err = cli.Put(ctx, "foo", "bar")
-  if err != nil {
-    log.Fatal(err)
-  }
-
-  resp, err := cli.Get(ctx, "foo")
-  if err != nil {
-    log.Fatal(err)
-  }
-  for _, ev := range resp.Kvs {
-    fmt.Printf("%s : %s\n", ev.Key, ev.Value)
-  }
-
-  // count keys about to be deleted
-  gresp, err := cli.Get(ctx, "foo", clientv3.WithPrefix())
-  if err != nil {
-      log.Fatal(err)
-  }
-
-  // delete the keys
-  dresp, err := cli.Delete(ctx, "foo", clientv3.WithPrefix())
-  if err != nil {
-      log.Fatal(err)
-  }
-
-  fmt.Println("Deleted all keys:", int64(len(gresp.Kvs)) == dresp.Deleted)
-
-  resp, err = cli.Get(ctx, "foo")
-  if err != nil {
-    log.Fatal(err)
-  }
-  for _, ev := range resp.Kvs {
-    fmt.Printf("%s : %s\n", ev.Key, ev.Value)
-  }
-}
-
-func putv3(cli *clientv3.Client, key string, val string){
-  ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
-  defer cancel()
-  _, err := cli.Put(ctx, key, val)
-  if err != nil {
-    log.Fatal(err)
-  }
-}
-
-func getv3(cli *clientv3.Client, key string){
-  ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
-  defer cancel()
-  resp, err := cli.Get(ctx, key)
-  if err != nil {
-    log.Fatal(err)
-  }
-  for _, ev := range resp.Kvs {
-    fmt.Printf("%s : %s\n", ev.Key, ev.Value)
-  }
-}
-
-func demov3() {
-  cli, err := clientv3.New(clientv3.Config{
-    Endpoints: []string{"localhost:62379"},
-    DialTimeout: 5 * time.Second,
-  })
-  if err != nil {
-    log.Fatal(err)
-  }
-  defer cli.Close()
-  putv3(cli, "/jp/ac/titech/e/ict/net/www/.A", "131.112.21.93")
-  putv3(cli, "/jp/ac/titech/e/ict/net/www/.A.ttl", "61")
-  getv3(cli, "/jp/ac/titech/e/ict/net/www/.A")
-  getv3(cli, "/jp/ac/titech/e/ict/net/www/.A.ttl")
-}
-
-func putv2(api client.KeysAPI, key string, val string){
+func put(api client.KeysAPI, key string, val string){
 	resp, err := api.Set(context.Background(), key, val, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -135,7 +16,7 @@ func putv2(api client.KeysAPI, key string, val string){
 	}
 }
 
-func getv2(api client.KeysAPI, key string){
+func get(api client.KeysAPI, key string){
 	resp, err := api.Get(context.Background(), key, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -145,14 +26,14 @@ func getv2(api client.KeysAPI, key string){
 	}
 }
 
-func deletev2(api client.KeysAPI, key string){
+func delete(api client.KeysAPI, key string){
 	_, err := api.Delete(context.Background(), key, &client.DeleteOptions{})
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func demov2(){
+func testdata_injection(){
   cli, err := client.New(client.Config{
     Endpoints: []string{"http://127.0.0.1:62379"},
     Transport: client.DefaultTransport,
@@ -162,16 +43,31 @@ func demov2(){
     log.Fatal(err)
   }
   api := client.NewKeysAPI(cli)
-  putv2(api, "/jp/ac/titech/e/ict/net/www/.A", "131.112.21.93")
-  putv2(api, "/jp/ac/titech/e/ict/net/www/.A.ttl", "61")
-  getv2(api, "/jp/ac/titech/e/ict/net/www/.A")
-  getv2(api, "/jp/ac/titech/e/ict/net/www/.A.ttl")
-  // deletev2(api, "/jp/ac/titech/e/ict/net/www/.A")
-  // deletev2(api, "/jp/ac/titech/e/ict/net/www/.A.ttl")
+  put(api, "/jp/ac/titech/e/ict/net/.SOA", "net.ict.e.titech.ac.jp.\tnet-root.net.ict.e.titech.ac.jp.\t3600\t600\t86400\t10")
+  put(api, "/jp/ac/titech/e/ict/net/.NS/ns1", "ns1.net.ict.e.titech.ac.jp.")
+  put(api, "/jp/ac/titech/e/ict/net/.NS/ns2", "ns2.net.ict.e.titech.ac.jp.")
+  put(api, "/jp/ac/titech/e/ict/net/.NS/ns1.ttl", "3600")
+  put(api, "/jp/ac/titech/e/ict/net/.NS/ns2.ttl", "3600")
+  put(api, "/jp/ac/titech/e/ict/net/ns1/.A", "131.112.21.100")
+  put(api, "/jp/ac/titech/e/ict/net/ns2/.A", "131.112.21.101")
+  put(api, "/jp/ac/titech/e/ict/net/ns1/.A.ttl", "3600")
+  put(api, "/jp/ac/titech/e/ict/net/ns2/.A.ttl", "3600")
+  put(api, "/jp/ac/titech/e/ict/net/www/.CNAME", "yamaoka-kitaguchi-lab.github.io")
+  put(api, "/jp/ac/titech/e/ict/net/.CNAME.ttl", "60")
+  put(api, "/jp/ac/titech/e/ict/net/www2/.A", "131.112.21.120")
+  put(api, "/jp/ac/titech/e/ict/net/www2/.A.ttl", "360")
+  put(api, "/jp/ac/titech/e/ict/net/wiki/.A/1st", "131.112.21.131")
+  put(api, "/jp/ac/titech/e/ict/net/wiki/.A/2nd", "131.112.21.132")
+  put(api, "/jp/ac/titech/e/ict/net/wiki/.A/1st.ttl", "120")
+  put(api, "/jp/ac/titech/e/ict/net/wiki/.A/2nd.ttl", "120")
+  put(api, "/jp/ac/titech/e/ict/net/dns-acme/.TXT", "challenge")
+  put(api, "/jp/ac/titech/e/ict/net/dns-acme/.TXT.ttl", "1200")
+  put(api, "/jp/ac/titech/e/ict/net/.MX/1st", "10\tfilter1.nap.gsic.titech.ac.jp.")
+  put(api, "/jp/ac/titech/e/ict/net/.MX/1st.ttl", "3600")
+  put(api, "/jp/ac/titech/e/ict/net/.MX/2nd", "15\tfilter2.nap.gsic.titech.ac.jp.")
+  put(api, "/jp/ac/titech/e/ict/net/.MX/2nd.ttl", "3600")
 }
 
-
-
 func main(){
-  demov2()
+  // testdata_injection()
 }
