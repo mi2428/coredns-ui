@@ -1,4 +1,4 @@
-// thx: https://github.com/octoblu/go-simple-etcd-client
+// based on: https://github.com/octoblu/go-simple-etcd-client
 package etcdclient
 
 import (
@@ -8,9 +8,9 @@ import (
 )
 
 type Client interface {
-  Ls(dir string, recursive bool) ([]string, error)
+  Ls(dir string, recursive, leafonly bool) ([]string, error)
   Get(key string) (string, error)
-  Set(key, val string) error
+  Set(key, val string, directory bool) error
   Del(key string) error
 }
 
@@ -30,6 +30,22 @@ func NewClient(uri string) (Client, error) {
   return &SimpleClient{etcd}, nil
 }
 
+func (cli *SimpleClient) Ls(dir string, recursive, leafonly bool) ([]string, error) {
+  api := client.NewKeysAPI(cli.etcd)
+  options := &client.GetOptions{Sort: true, Recursive: recursive}
+  res, err := api.Get(context.Background(), dir, options)
+  if err != nil {
+    if client.IsKeyNotFound(err) {
+      return make([]string, 0), nil
+    }
+    return make([]string, 0), err
+  }
+  if leafonly {
+    return nodesToStringSlice(extractLeafNodes(res.Node.Nodes)), nil
+  }
+  return nodesToStringSlice(res.Node.Nodes), nil
+}
+
 func (cli *SimpleClient) Get(key string) (string, error) {
   api := client.NewKeysAPI(cli.etcd)
   res, err := api.Get(context.Background(), key, nil)
@@ -42,9 +58,10 @@ func (cli *SimpleClient) Get(key string) (string, error) {
   return res.Node.Value, nil
 }
 
-func (cli *SimpleClient) Set(key, val string) error {
+func (cli *SimpleClient) Set(key, val string, directory bool) error {
   api := client.NewKeysAPI(cli.etcd)
-  _, err := api.Set(context.Background(), key, val, nil)
+  options := &client.SetOptions{Dir: directory}
+  _, err := api.Set(context.Background(), key, val, options)
   return err
 }
 
@@ -59,17 +76,14 @@ func (cli *SimpleClient) Del(key string) error {
   return err
 }
 
-func (cli *SimpleClient) Ls(dir string, recursive bool) ([]string, error) {
-  api := client.NewKeysAPI(cli.etcd)
-  options := &client.GetOptions{Sort: true, Recursive: recursive}
-  res, err := api.Get(context.Background(), dir, options)
-  if err != nil {
-    if client.IsKeyNotFound(err) {
-      return make([]string, 0), nil
+func extractLeafNodes(nodes client.Nodes) client.Nodes {
+  var leafnodes client.Nodes
+  for _, node := range nodes {
+    if ! node.Dir {
+      leafnodes = append(leafnodes, node)
     }
-    return make([]string, 0), err
   }
-  return nodesToStringSlice(res.Node.Nodes), nil
+  return leafnodes
 }
 
 func nodesToStringSlice(nodes client.Nodes) []string {
